@@ -12,10 +12,21 @@ O notebook deverá implementar um benchmark de classificação de sentimento fin
 Financial PhraseBank Portuguese Translation
 ```
 
-Utilize apenas:
+O pipeline principal deverá ser:
 
+```text
+texto original em inglês
+→ tradução automática para o português
+→ classificação de sentimento
+```
+
+Utilize:
+
+- a coluna original em inglês, normalizada internamente para `text_en`
 - `text_pt`
 - `y`
+
+Crie `text_pt_mt`, contendo a tradução automática de `text_en` para o português. O nome original da coluna em inglês deverá ser detectado e validado durante a leitura; depois, renomeie-a para `text_en`.
 
 Classes:
 
@@ -43,6 +54,14 @@ positive
 12. Utilizar F1-score Macro como métrica principal.
 13. Manter código modular, comentado e didático.
 14. Priorizar simplicidade em vez de testar dezenas de alternativas.
+15. Traduzir o inglês para o português com um único modelo de tradução previamente treinado e congelado.
+16. A tradução não poderá utilizar os rótulos nem ser ajustada sobre os conjuntos do benchmark.
+17. Gerar a tradução uma única vez, armazená-la com um identificador estável e reutilizá-la em todos os modelos.
+18. Usar os mesmos índices de treino, validação e teste antes e depois da tradução.
+19. Tratar `text_pt_mt` como entrada principal dos classificadores.
+20. Usar `text_pt` como cenário de controle para medir a degradação introduzida pela tradução automática.
+21. Nunca escolher modelos ou hiperparâmetros com base no teste, inclusive na comparação entre os dois cenários.
+22. Reportar separadamente o tempo de tradução, a inferência do classificador e o tempo ponta a ponta.
 
 ---
 
@@ -74,18 +93,40 @@ Não implementar:
 3. Funções Auxiliares
 4. Leitura e Validação dos Dados
 5. Separação dos Dados
-6. Análise Exploratória
-7. Pré-processamento
-8. TF-IDF + Regressão Logística
-9. BiLSTM treinada do zero
-10. Otimização da BiLSTM com Optuna
-11. Extração de Embeddings Contextuais (BERTimbau)
-12. LightGBM sobre Embeddings
-13. Transformer com LoRA
-14. Análise de Erros
-15. Comparação Consolidada
-16. Trade-offs
-17. Conclusões
+6. Tradução Automática do Inglês para o Português
+7. Avaliação e Validação das Traduções
+8. Análise Exploratória
+9. Pré-processamento
+10. TF-IDF + Regressão Logística
+11. BiLSTM treinada do zero
+12. Otimização da BiLSTM com Optuna
+13. Extração de Embeddings Contextuais (BERTimbau)
+14. LightGBM sobre Embeddings
+15. Transformer com LoRA
+16. Análise de Erros
+17. Comparação Consolidada
+18. Trade-offs
+19. Conclusões
+
+---
+
+# Diretrizes da Tradução
+
+Utilizar um único modelo de tradução inglês-português disponível no Hugging Face Transformers.
+
+O modelo deverá:
+
+- permanecer congelado;
+- operar sem acesso a `y`;
+- traduzir todos os exemplos com uma configuração fixa e reproduzível;
+- preservar, tanto quanto possível, números, percentuais, moedas, nomes próprios e negações;
+- produzir `text_pt_mt`, armazenado em cache com o identificador do exemplo, `text_en`, `text_pt` e `y`.
+
+Registrar o nome e a versão do modelo, os parâmetros de geração, o tamanho máximo de sequência, o hardware e o tempo de tradução.
+
+Não selecionar traduções manualmente nem escolher entre vários tradutores com base no desempenho do conjunto de teste.
+
+Comparar `text_pt_mt` com `text_pt` por meio de verificações automáticas e inspeção qualitativa. Métricas de similaridade de tradução podem ser apresentadas como diagnóstico secundário, mas não substituem a métrica principal de classificação.
 
 ---
 
@@ -181,7 +222,7 @@ Treinar apenas as matrizes LoRA e a cabeça de classificação.
 
 # Avaliação
 
-Todos os modelos deverão utilizar exatamente as mesmas métricas:
+Todos os modelos deverão utilizar exatamente as mesmas métricas nos dois cenários (`text_pt` e `text_pt_mt`):
 
 - Accuracy
 - Precision Macro
@@ -193,6 +234,9 @@ Todos os modelos deverão utilizar exatamente as mesmas métricas:
 - Tempo de treinamento
 - Tempo de inferência
 - Quantidade de parâmetros treináveis
+- Variação do F1-score Macro entre o português de referência e o português traduzido
+- Tempo de tradução
+- Tempo total do pipeline ponta a ponta
 
 ---
 
@@ -206,6 +250,9 @@ Comparar os quatro modelos analisando:
 - percentuais
 - linguagem financeira
 - confusão entre classes
+- omissões, adições e alterações introduzidas pela tradução
+- preservação de negações, números, percentuais, moedas e termos financeiros
+- mudanças de previsão entre `text_pt` e `text_pt_mt`
 
 Selecionar exemplos representativos de acertos e erros.
 
@@ -226,6 +273,9 @@ Responder:
 - Qual apresentou melhor custo-benefício?
 - Quando utilizar cada abordagem?
 - Quais limitações foram observadas?
+- Quanto desempenho foi perdido ou ganho ao substituir a tradução de referência pela tradução automática?
+- Quais erros vieram do tradutor e quais vieram do classificador?
+- Qual modelo foi mais robusto aos ruídos de tradução?
 
 ---
 
@@ -235,4 +285,4 @@ Este projeto tem como objetivo aprender os principais pipelines modernos de NLP.
 
 Cada abordagem deverá utilizar uma metodologia consolidada e suficientemente representativa, evitando uma quantidade excessiva de experimentos.
 
-O foco será compreender as diferenças entre as representações textuais e os trade-offs entre desempenho, custo computacional e interpretabilidade, produzindo um benchmark limpo, didático e reproduzível.
+O foco será compreender as diferenças entre as representações textuais, o impacto da tradução automática e os trade-offs entre desempenho, custo computacional e interpretabilidade, produzindo um benchmark limpo, didático e reproduzível.
